@@ -1,0 +1,16 @@
+# Build context untuk ai-agent Dockerfile
+
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.env
+.env.local
+.DS_Store
+*.log
+*.db-shm
+*.db-wal
+node_modules
