@@ -184,10 +184,21 @@ class ReminderAgent:
         if not args.strip():
             return "❌ Format tidak valid!\n\nPenggunaan: `/daftar Kelas1, Kelas2`\nContoh: `/daftar MKW B, MKU A`"
             
-        if ',' in args:
-            classes = [c.strip().upper() for c in args.split(',')]
-        else:
-            classes = [c.strip().upper() for c in args.split()]
+        # Gunakan regex untuk mencari pola kelas (case insensitive & kebal spasi/koma)
+        matches = re.findall(r'(MKW|MKU)\s*([A-C])', args.upper())
+        
+        if not matches:
+            return "❌ Format kelas tidak dikenali!\n\n*Pilihan kelas yang tersedia:*\n📚 MKW: A, B, atau C\n📚 MKU: A atau B\n\nContoh penggunaan: `/daftar mkw b, mku a`"
+            
+        classes = []
+        for prefix, suffix in matches:
+            if prefix == "MKU" and suffix not in ["A", "B"]:
+                return f"❌ Pendaftaran gagal! Kelas *MKU {suffix}* tidak ada. MKU hanya sampai B."
+            if prefix == "MKW" and suffix not in ["A", "B", "C"]:
+                return f"❌ Pendaftaran gagal! Kelas *MKW {suffix}* tidak ada. MKW hanya sampai C."
+            classes.append(f"{prefix} {suffix}")
+            
+        classes = list(set(classes)) # Hapus duplikat
             
         try:
             if hasattr(self.db, 'register_student'):
@@ -414,7 +425,7 @@ OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
     "subject": "Nama matkul (jika add_task)",
     "deadline": "DD/MM/YYYY HH:MM (jika add_task)",
     "description": "Deskripsi (jika add_task)",
-    "target_class": ["MKW 1"],
+    "target_class": ["MKW A"],
     "reminder_schedule": ["1 day", "2 hours"]
 }}"""
 
