@@ -397,7 +397,7 @@ OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_text}
                 ],
-                model="llama3-8b-8192", # Bisa diganti ke llama3-70b-8192 untuk lebih pintar
+                model="llama-3.3-70b-versatile", # Alternatif lain: "llama-3.1-8b-instant" atau "mixtral-8x7b-32768"
                 response_format={"type": "json_object"},
                 temperature=0.5,
             )
@@ -437,17 +437,16 @@ OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
                 return "Ya? Ada yang bisa dibantu? Ketik `.tugas matkul X besok` untuk mencatat tugas."
             return self.handle_llm_chat(user_text, chat_id, user_id)
             
-        command, args = self.parse_message(message)
-        
-        # Remove leading slash if present
-        if command.startswith("/"):
-            command = command[1:]
-        
-        handler = self.commands.get(command)
-        
-        if handler:
-            return handler(args, chat_id, user_id)
-        else:
-            return f"""❌ Perintah tidak dikenal: '{command}'
-
-Gunakan `/help` untuk melihat daftar perintah yang tersedia."""
+        # Cek apakah pesan diawali command garis miring (/)
+        if message.startswith("/"):
+            command, args = self.parse_message(message)
+            command = command[1:].lower() # Hapus slash
+            
+            handler = self.commands.get(command)
+            if handler:
+                return handler(args, chat_id, user_id)
+            else:
+                return f"❌ Perintah tidak dikenal: '/{command}'\n\nGunakan `/help` untuk daftar perintah."
+                
+        # Abaikan pesan biasa yang tidak diawali . atau / (Agar tidak spam di Grup)
+        return ""

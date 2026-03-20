@@ -190,7 +190,8 @@ async def webhook_handler(payload: dict, background_tasks: BackgroundTasks):
         response = agent.process_command(message, chat_id, user_id)
         
         # Kirim response ke WhatsApp via WAHA
-        background_tasks.add_task(send_message_to_waha, chat_id, response)
+        if response: # Hanya kirim pesan jika bot memang ingin membalas
+            background_tasks.add_task(send_message_to_waha, chat_id, response)
         
         return JSONResponse({
             "status": "success",

@@ -42,7 +42,8 @@ class Database:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 chat_id TEXT NOT NULL,
                 user_id TEXT NOT NULL,
-                priority TEXT DEFAULT 'medium'
+                priority TEXT DEFAULT 'medium',
+                target_class TEXT DEFAULT 'ALL'
             )
         """)
         
@@ -72,20 +73,30 @@ class Database:
             )
         """)
         
+        # Tabel untuk pendataan mahasiswa (fitur tag-all)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS students (
+                phone TEXT,
+                chat_id TEXT,
+                classes TEXT,
+                PRIMARY KEY (phone, chat_id)
+            )
+        """)
+        
         conn.commit()
         conn.close()
     
     # ===== TASK OPERATIONS =====
     def add_task(self, title: str, description: str, subject: str, deadline: datetime, 
-                 chat_id: str, user_id: str, priority: str = "medium") -> int:
+                 chat_id: str, user_id: str, priority: str = "medium", target_class: str = "ALL") -> int:
         """Tambah task baru"""
         conn = self._get_connection()
         cursor = conn.cursor()
         
         cursor.execute("""
-            INSERT INTO tasks (title, description, subject, deadline, status, chat_id, user_id, priority)
-            VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)
-        """, (title, description, subject, deadline, chat_id, user_id, priority))
+            INSERT INTO tasks (title, description, subject, deadline, status, chat_id, user_id, priority, target_class)
+            VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+        """, (title, description, subject, deadline, chat_id, user_id, priority, target_class))
         
         task_id = cursor.lastrowid
         conn.commit()
@@ -230,3 +241,32 @@ class Database:
         conn.close()
         
         return subjects
+
+    # ===== STUDENT REGISTRATION OPERATIONS =====
+    def register_student(self, phone: str, chat_id: str, classes: list):
+        """Daftarkan mahasiswa ke kelas tertentu"""
+        classes_str = ",".join(classes)
+        conn = self._get_connection()
+        conn.execute('INSERT OR REPLACE INTO students (phone, chat_id, classes) VALUES (?, ?, ?)',
+                     (phone, chat_id, classes_str))
+        conn.commit()
+        conn.close()
+
+    def get_mentions_for_task(self, task_id: int, chat_id: str) -> list:
+        """Ambil daftar nomor HP mahasiswa untuk tag-all WAHA"""
+        conn = self._get_connection()
+        cursor = conn.execute('SELECT target_class FROM tasks WHERE id = ?', (task_id,))
+        row = cursor.fetchone()
+        if not row: return []
+        
+        target_classes = [c.strip() for c in row['target_class'].split(',')]
+        mentions = []
+        
+        cursor = conn.execute('SELECT phone, classes FROM students WHERE chat_id = ?', (chat_id,))
+        for student in cursor.fetchall():
+            student_classes = [c.strip() for c in student['classes'].split(',')]
+            if "ALL" in target_classes or "ALL" in student_classes or any(c in target_classes for c in student_classes):
+                mentions.append(student['phone'])
+                
+        conn.close()
+        return mentions
