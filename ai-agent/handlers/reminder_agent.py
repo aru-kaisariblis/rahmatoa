@@ -453,10 +453,10 @@ OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
     "reminder_schedule": ["1 day", "2 hours"],
     "task_id": 1,
     "filter": "pending",
-    "updates": {
+    "updates": {{
         "deadline": "25/03/2026 15:00",
         "reminder_schedule": ["30 minutes"]
-    }
+    }}
 }}"""
 
         messages = [{"role": "system", "content": system_prompt}]
