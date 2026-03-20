@@ -137,6 +137,16 @@ class ReminderAgent:
                         message=f"⏰ Reminder: *{title}* ({subject}) untuk kelas *{target_class}* jatuh tempo dalam {label}!"
                     )
                     created_reminders.append(label)
+                    
+            # Tambahkan pengingat TEPAT saat deadline (Tenggat Waktu)
+            if deadline > datetime.now():
+                self.db.add_reminder(
+                    task_id=task_id,
+                    chat_id=chat_id,
+                    reminder_time=deadline,
+                    message=f"🚨 TENGGAT WAKTU TIBA! Tugas *{title}* ({subject}) untuk kelas *{target_class}* harus dikumpulkan SEKARANG!"
+                )
+                created_reminders.append("Saat deadline")
             
             deadline_format = deadline.strftime("%d/%m/%Y %H:%M")
             priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(priority, "🟡")
