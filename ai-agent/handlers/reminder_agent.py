@@ -2,10 +2,9 @@ import re
 import os
 import json
 from datetime import datetime, timedelta
-from typing import Tuple, Optional, Dict
+from typing import Tuple, Optional
 from groq import Groq
 from utils.database import Database
-from models.task import TaskStatus
 
 class ReminderAgent:
     """AI Agent untuk mengolah perintah reminder tugas kuliah"""

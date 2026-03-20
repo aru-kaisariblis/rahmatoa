@@ -4,9 +4,8 @@ Integrasi dengan WAHA (WhatsApp HTTP API)
 """
 
 import re
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from datetime import datetime
 import os
 import sys
@@ -35,21 +34,6 @@ app = FastAPI(
 # ===== DATABASE =====
 db = Database()
 agent = ReminderAgent(db)
-
-# ===== MODELS =====
-class MessagePayload(BaseModel):
-    """Payload dari WAHA webhook"""
-    sessionId: str
-    chatId: str
-    fromId: str
-    text: str
-    senderName: Optional[str] = None
-    timestamp: Optional[int] = None
-
-class RemoteMessagePayload(BaseModel):
-    """Payload untuk mengirim pesan ke WAHA"""
-    chatId: str
-    text: str
 
 # ===== BACKGROUND TASKS =====
 async def mark_chat_as_seen(chat_id: str):
@@ -127,9 +111,14 @@ async def check_and_send_reminders():
                 # Ambil mentions mahasiswa sesuai kelas tugas (jika ada fungsi get_mentions_for_task)
                 mentions = getattr(db, 'get_mentions_for_task', lambda t, c: [])(reminder['task_id'], reminder['chat_id'])
                 
+                message_text = reminder['message']
+                if mentions:
+                    mention_tags = " ".join([f"@{m.split('@')[0]}" for m in mentions])
+                    message_text += f"\n\n📢 Panggilan: {mention_tags}"
+                
                 await send_message_to_waha(
                     chat_id=reminder['chat_id'],
-                    text=reminder['message'],
+                    text=message_text,
                     mentions=mentions
                 )
                 db.mark_reminder_sent(reminder['id'])
@@ -178,7 +167,7 @@ async def webhook_handler(payload: dict, background_tasks: BackgroundTasks):
                 
             waha_payload = payload.get("payload", {})
             
-            # Abaikan pesan dari bot itu sendiri agar tidak looping
+            # Abaikan pesan dari bot itu sendiri agar tidak lo
             if waha_payload.get("fromMe", False):
                 print(f"⚠️ Pesan diabaikan karena dikirim oleh nomor bot itu sendiri.")
                 return JSONResponse({"status": "ignored"})

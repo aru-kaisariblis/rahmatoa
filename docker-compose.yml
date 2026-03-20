@@ -15,6 +15,7 @@ services:
       - REMINDER_CHECK_INTERVAL=60
       - AI_AGENT_PORT=8001
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - TZ=Asia/Makassar
     volumes:
       - ./sessions:/app/sessions
     depends_on:
@@ -44,6 +45,7 @@ services:
       - WAHA_API_KEY=${WAHA_API_KEY}
       - WHATSAPP_HOOK_URL=http://ai-agent:8001/webhook
       - WHATSAPP_HOOK_EVENTS=message
+      - TZ=Asia/Makassar
     volumes:
       - ./sessions:/app/sessions
     networks:
