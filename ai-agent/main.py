@@ -175,8 +175,18 @@ async def webhook_handler(payload: dict, background_tasks: BackgroundTasks):
             message = waha_payload.get("body", "")
             message = message.strip() if message else ""
             chat_id = waha_payload.get("from", "")
-            # Ambil sender dari participant (WAHA) atau author, fallback ke chat_id
-            user_id = waha_payload.get("participant") or waha_payload.get("author") or chat_id
+            
+            # 1. Ambil dari field author atau participant
+            user_id = waha_payload.get("author") or waha_payload.get("participant")
+            # 2. Coba gali dari dalam field _data (Khas engine WebJS)
+            if not user_id and isinstance(waha_payload.get("_data"), dict):
+                user_id = waha_payload["_data"].get("author")
+            # 3. Coba ekstrak dari string ID pesan (Kadang WAHA menyelipkan nomor di sini)
+            if not user_id and isinstance(waha_payload.get("id"), str) and "@c.us" in waha_payload.get("id"):
+                user_id = next((part for part in waha_payload["id"].split("_") if "@c.us" in part), None)
+            # 4. Fallback terakhir ke chat_id (hanya cocok untuk private chat)
+            if not user_id:
+                user_id = chat_id
         else:
             # Payload custom dari test.py lokal
             message = payload.get("text", "").strip()

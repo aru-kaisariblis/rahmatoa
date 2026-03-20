@@ -180,13 +180,30 @@ class ReminderAgent:
         """Handle: /list atau /list [subject] atau /list [status]"""
 
     def handle_daftar(self, args: str, chat_id: str, user_id: str) -> str:
-        """Handle: /daftar [Kelas] atau /daftar @nomor [Kelas]"""
+        """Handle: /daftar [Kelas] atau /daftar [Nomor] [Kelas]"""
         if not args.strip():
-            return "❌ Format tidak valid!\n\nPenggunaan: `/daftar Kelas1, Kelas2`\nContoh: `/daftar MKW B, MKU A`"
+            return "❌ Format tidak valid!\n\nPenggunaan: `/daftar [Nomor_HP] Kelas1, Kelas2`\nContoh: `/daftar 628123456789 MKW B, MKU A`"
             
-        # Cari mention (jika mendaftarkan orang lain)
+        # Cari nomor HP yang di-mention (@628...) atau diketik manual (628... / 08...)
         mentioned_numbers = re.findall(r'@(\d+)', args)
-        targets = [f"{num}@c.us" for num in mentioned_numbers] if mentioned_numbers else [user_id]
+        manual_numbers = re.findall(r'\b(628\d{8,13}|08\d{8,13})\b', args)
+        
+        all_numbers = list(set(mentioned_numbers + manual_numbers))
+        
+        # Normalisasi format 08 menjadi 628
+        normalized_numbers = []
+        for num in all_numbers:
+            if num.startswith('08'):
+                normalized_numbers.append('62' + num[1:])
+            else:
+                normalized_numbers.append(num)
+                
+        if normalized_numbers:
+            targets = [f"{num}@c.us" for num in normalized_numbers]
+        else:
+            if user_id.endswith("@g.us"):
+                return "❌ WAHA gagal mendeteksi nomor aslimu dari sistem. Tolong daftar manual dengan mengetik nomormu!\n\nContoh: `/daftar 628123456789 MKU B`"
+            targets = [user_id]
             
         # Gunakan regex untuk mencari pola kelas (case insensitive & kebal spasi/koma)
         matches = re.findall(r'(MKW|MKU)\s*([A-C])', args.upper())
@@ -206,14 +223,15 @@ class ReminderAgent:
             
         try:
             if hasattr(self.db, 'register_student'):
+                registered_tags = []
                 for target in targets:
                     self.db.register_student(target, chat_id, classes)
+                    # Tampilkan nomor yang didaftarkan untuk konfirmasi
+                    num_only = target.split('@')[0]
+                    registered_tags.append(f"@{num_only}")
                 
-                if mentioned_numbers:
-                    mentions_str = " ".join([f"@{num}" for num in mentioned_numbers])
-                    return f"✅ Berhasil mendaftarkan {mentions_str} ke kelas: *{', '.join(classes)}*!"
-                else:
-                    return f"✅ Berhasil mendaftar ke kelas: *{', '.join(classes)}*!\nKamu akan otomatis di-tag saat ada tugas untuk kelas tersebut."
+                tags_str = " ".join(registered_tags)
+                return f"✅ Berhasil mendaftarkan nomor {tags_str} ke kelas: *{', '.join(classes)}*!\n\nNomor ini akan otomatis dipanggil saat ada tugas."
             else:
                 return "❌ Fitur pendataan kelas belum diaktifkan di database."
         except Exception as e:
