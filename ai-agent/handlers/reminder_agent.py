@@ -180,9 +180,9 @@ class ReminderAgent:
         """Handle: /list atau /list [subject] atau /list [status]"""
 
     def handle_daftar(self, args: str, chat_id: str, user_id: str) -> str:
-        """Handle: /daftar [Kelas] atau /daftar [Nomor] [Kelas]"""
+        """Handle: /daftar [Nomor] [Kelas]"""
         if not args.strip():
-            return "❌ Format tidak valid!\n\nPenggunaan: `/daftar [Nomor_HP] Kelas1, Kelas2`\nContoh: `/daftar 628123456789 MKW B, MKU A`"
+            return "❌ Format tidak valid!\n\nPenggunaan Wajib: `/daftar [Nomor_HP] Kelas1, Kelas2`\nContoh: `/daftar 628123456789 MKW B, MKU A`"
             
         # Cari nomor HP yang di-mention (@628...) atau diketik manual (628... / 08...)
         mentioned_numbers = re.findall(r'@(\d+)', args)
@@ -201,9 +201,7 @@ class ReminderAgent:
         if normalized_numbers:
             targets = [f"{num}@c.us" for num in normalized_numbers]
         else:
-            if user_id.endswith("@g.us"):
-                return "❌ WAHA gagal mendeteksi nomor aslimu dari sistem. Tolong daftar manual dengan mengetik nomormu!\n\nContoh: `/daftar 628123456789 MKU B`"
-            targets = [user_id]
+            return "❌ Nomor HP wajib disertakan!\n\nKarena aturan privasi WhatsApp, kamu *WAJIB* mengetik nomor HP aslimu saat mendaftar.\n\nContoh: `/daftar 628123456789 MKU B, MKW A`"
             
         # Gunakan regex untuk mencari pola kelas (case insensitive & kebal spasi/koma)
         matches = re.findall(r'(MKW|MKU)\s*([A-C])', args.upper())
@@ -403,8 +401,8 @@ class ReminderAgent:
 
 7️⃣ `/status` - Lihat statistik tasks
 
-8️⃣ `/daftar` - Daftar notifikasi kelas
-   Contoh: `/daftar MKW1 MKU2`
+8️⃣ `/daftar` - Daftar notifikasi kelas (Wajib dengan nomor)
+   Contoh: `/daftar 628123456789 MKW A, MKU B`
 
 9️⃣ `/help` - Tampilkan bantuan ini
 
