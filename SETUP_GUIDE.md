@@ -76,6 +76,7 @@ python main.py
 | Lihat Mata Kuliah | ✅ | `/subject` |
 | Tasks Overdue | ✅ | `/overdue` |
 | Statistik | ✅ | `/status` |
+| Daftar Kelas | ✅ | `/daftar [Nomor_HP] [Kelas]` |
 | Bantuan | ✅ | `/help` |
 | Auto Reminders | ✅ | Otomatis dibuat (1 hari & 1 jam) |
 | REST API | ✅ | `/tasks/{chat_id}`, `/reminders/{chat_id}`, `/stats/{chat_id}` |

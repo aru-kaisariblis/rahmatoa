@@ -133,6 +133,47 @@ class Database:
         
         return tasks
     
+    def get_task(self, task_id: int) -> Optional[dict]:
+        """Ambil detail satu task berdasarkan ID"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+        
+    def update_task(self, task_id: int, title: str = None, description: str = None, 
+                    subject: str = None, deadline: datetime = None, 
+                    priority: str = None, target_class: str = None) -> bool:
+        """Update existing task secara dinamis"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        
+        update_fields = []
+        params = []
+        
+        if title is not None: update_fields.append("title = ?"); params.append(title)
+        if description is not None: update_fields.append("description = ?"); params.append(description)
+        if subject is not None: update_fields.append("subject = ?"); params.append(subject)
+        if deadline is not None: update_fields.append("deadline = ?"); params.append(deadline)
+        if priority is not None: update_fields.append("priority = ?"); params.append(priority)
+        if target_class is not None: update_fields.append("target_class = ?"); params.append(target_class)
+            
+        if not update_fields:
+            conn.close()
+            return False
+            
+        update_fields.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(task_id)
+        
+        query = f"UPDATE tasks SET {', '.join(update_fields)} WHERE id = ?"
+        
+        cursor.execute(query, params)
+        rows_affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return rows_affected > 0
+    
     def update_task_status(self, task_id: int, status: str):
         """Update status task"""
         conn = self._get_connection()
@@ -185,6 +226,14 @@ class Database:
         conn.close()
         
         return reminder_id
+        
+    def delete_reminders_for_task(self, task_id: int):
+        """Hapus semua reminder untuk suatu task sebelum diganti dengan yang baru"""
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM reminders WHERE task_id = ?", (task_id,))
+        conn.commit()
+        conn.close()
     
     def get_pending_reminders(self) -> List[dict]:
         """Ambil reminders yang belum dikirim dan waktuya sudah tiba"""

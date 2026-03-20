@@ -131,6 +131,7 @@ Setelah integrasi berhasil, Anda bisa menggunakan AI Agent langsung di WhatsApp:
 /subject
 /status
 /overdue
+/daftar [Nomor_HP] [Kelas]
 /help
 ```
 

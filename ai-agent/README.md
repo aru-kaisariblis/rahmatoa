@@ -14,6 +14,7 @@
 AI Reminder Agent adalah sistem otomatis yang membantu Anda mengelola tugas-tugas kuliah melalui WhatsApp. Agent ini terintegrasi dengan WAHA (WhatsApp HTTP API) dan menyediakan features seperti:
 
 ✨ **Features:**
+- 🤖 Interaksi Bahasa Alami (AI): Tambah, hapus, selesai, dan lihat tugas hanya lewat chat santai!
 - ✅ Membuat, mengedit, dan menghapus tasks
 - 🔔 Reminders otomatis (1 hari & 1 jam sebelum deadline)
 - 📚 Kategorisasi per mata kuliah  
@@ -223,6 +224,15 @@ INFO:     Application startup complete
 
 📈 Total: 16
 ✨ Completion Rate: 50.0%
+```
+
+---
+
+### 9. `/daftar` - Daftar Notifikasi
+
+**Format (Wajib Nomor HP):**
+```
+/daftar [Nomor_HP] [Kelas1], [Kelas2]
 ```
 
 ---

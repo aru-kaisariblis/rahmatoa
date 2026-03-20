@@ -423,36 +423,40 @@ class ReminderAgent:
             
         current_time = datetime.now().strftime("%d/%m/%Y %H:%M")
         
-        system_prompt = f"""Kamu adalah "Bot Akademik", asisten AI super asik, gaul, tapi cerdas ala mahasiswa Indonesia.
+        system_prompt = f"""Kamu adalah "Bot Akademik", asisten AI super asik, gaul, tapi cerdas ala Gen-Z mahasiswa Indonesia.
 Waktu saat ini adalah: {current_time}
 
 KONTEKS KELAS:
-Terdapat berbagai macam kelas Mata Kuliah Wajib (MKW 1, MKW 2, MKW 3) dan berbagai macam kelas Mata Kuliah Umum (MKU 1, MKU 2).
-Satu matkul bisa ditujukan untuk 1 kelas saja, atau digabung (misal: MKW 1 & MKW 2).
+Terdapat 3 kelas Mata Kuliah Wajib (MKW A, MKW B, MKW C) dan 2 kelas Mata Kuliah Umum (MKU A, MKU B).
+Satu matkul bisa ditujukan untuk 1 kelas saja, atau digabung (misal: MKW A & MKW B).
 
 TUGAS KAMU:
-1. Ngobrol layaknya teman seangkatan (pakai kata santai seperti bro, cuy, oke siap, dkk tapi tetap sopan). Jangan kaku kayak robot resmi. Gunakan emoji yang pas!
-2. Jika user memberikan tugas, ekstrak 6 hal ini:
-1. title (Judul/Nama Tugas)
-2. subject (Nama Matkul)
-3. deadline (Waktu pengumpulan, format WAJIB: DD/MM/YYYY HH:MM)
-4. description (Detail tugas)
-5. target_class (Tugas ini untuk anak kelas mana? Misal: ["MKW 1"], ["MKW 1", "MKW 2"], atau ["ALL"])
-6. reminder_schedule (Kapan saja bot harus mengingatkan? Misal: ["1 hari sebelum", "2 jam sebelum"])
-
-3. WAJIB tanyakan balik dengan santai jika info belum lengkap (misal: "Deadlinenya kapan nih bro biar bisa dicatet?").
-4. Jika info sudah LENGKAP, set action menjadi "add_task". Jika masih kurang/hanya ngobrol, set "chat".
+1. Ngobrol layaknya teman seangkatan (pakai kata santai bro, cuy, oke siap). Jangan kaku!
+2. Pahami KEMAMPUAN-mu (ACTION) dan set pada JSON:
+   - "add_task": Jika user minta buat tugas. Ekstrak: title, subject, deadline (DD/MM/YYYY HH:MM), description, target_class (misal ["MKW A"]), reminder_schedule (misal ["1 day"]). Tanyakan balik jika data penting belum lengkap!
+   - "update_task": Jika user minta mengubah tugas yang sudah ada (tambah/ganti reminder, ganti deadline, judul, dll). Ekstrak: task_id, dan field yang diubah saja ke dalam object "updates" (opsi: title, subject, deadline, description, target_class, reminder_schedule).
+   - "delete_task": Jika user minta hapus/batalkan tugas (ekstrak task_id).
+   - "done_task": Jika user minta tandai tugas sudah dikerjakan/selesai (ekstrak task_id).
+   - "list_tasks": Jika user minta lihat daftar tugas. Ekstrak filter (misal: "pending", "overdue", atau nama matkul).
+   - "chat": Ngobrol biasa, atau beri tahu cara pakai command.
+3. ATURAN COMMAND DAFTAR: Jika user nanya cara mendaftar ke bot, pastikan kamu memberi tahu mereka WAJIB menggunakan nomor HP. Contoh yang harus kamu sebutkan: "Ketik gini ya bro: /daftar 628123456789 MKU B"
 
 OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
 {{
-    "action": "chat" | "add_task",
+    "action": "chat" | "add_task" | "update_task" | "delete_task" | "done_task" | "list_tasks",
     "response": "Balasan gaulmu untuk user",
     "title": "Judul tugas (jika add_task)",
     "subject": "Nama matkul (jika add_task)",
     "deadline": "DD/MM/YYYY HH:MM (jika add_task)",
     "description": "Deskripsi (jika add_task)",
     "target_class": ["MKW A"],
-    "reminder_schedule": ["1 day", "2 hours"]
+    "reminder_schedule": ["1 day", "2 hours"],
+    "task_id": 1,
+    "filter": "pending",
+    "updates": {
+        "deadline": "25/03/2026 15:00",
+        "reminder_schedule": ["30 minutes"]
+    }
 }}"""
 
         messages = [{"role": "system", "content": system_prompt}]
@@ -505,6 +509,25 @@ OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
                 add_result = self.handle_add_task(fake_args, chat_id, user_id)
                 
                 return f"🤖 *Asisten AI:*\n{reply_msg}\n\n{add_result}"
+            elif action == "update_task":
+                task_id = response_json.get("task_id")
+                updates = response_json.get("updates", {})
+                if not task_id:
+                    return f"🤖 *Asisten AI:*\n{reply_msg}\n\n❌ Error: Tolong sebutkan ID tugas yang mau diupdate ya bro."
+                res = self.handle_update_from_llm(task_id, updates, chat_id, user_id)
+                return f"🤖 *Asisten AI:*\n{reply_msg}\n\n{res}"
+            elif action == "delete_task":
+                task_id = response_json.get("task_id", "")
+                res = self.handle_delete_task(str(task_id), chat_id, user_id)
+                return f"🤖 *Asisten AI:*\n{reply_msg}\n\n{res}"
+            elif action == "done_task":
+                task_id = response_json.get("task_id", "")
+                res = self.handle_complete_task(str(task_id), chat_id, user_id)
+                return f"🤖 *Asisten AI:*\n{reply_msg}\n\n{res}"
+            elif action == "list_tasks":
+                filter_val = response_json.get("filter", "")
+                res = self.handle_list_tasks(str(filter_val), chat_id, user_id)
+                return f"🤖 *Asisten AI:*\n{reply_msg}\n\n{res}"
             else:
                 # Jika hanya ngobrol atau menanyakan detail yang kurang
                 return f"🤖 *Asisten AI:*\n{reply_msg}"
@@ -535,3 +558,100 @@ OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
                 
         # Abaikan pesan biasa yang tidak diawali . atau / (Agar tidak spam di Grup)
         return ""
+
+    def handle_update_from_llm(self, task_id, updates: dict, chat_id: str, user_id: str) -> str:
+        """Handle update task dinamis dari LLM"""
+        try:
+            task_id = int(task_id)
+        except (ValueError, TypeError):
+            return "❌ Task ID tidak valid!"
+            
+        if not hasattr(self.db, 'get_task') or not hasattr(self.db, 'update_task'):
+            return "❌ Fitur update belum diaktifkan di database."
+            
+        task = self.db.get_task(task_id)
+        if not task:
+            return f"❌ Tugas #{task_id} tidak ditemukan!"
+            
+        if str(task['chat_id']) != str(chat_id):
+            return f"❌ Tugas #{task_id} tidak ada di dalam chat ini."
+            
+        new_title = updates.get("title", task['title'])
+        new_desc = updates.get("description", task['description'])
+        new_subj = updates.get("subject", task['subject'])
+        new_target = updates.get("target_class", task['target_class'])
+        
+        if isinstance(new_target, list):
+            new_target = ",".join([str(x) for x in new_target])
+            
+        new_deadline = task['deadline']
+        deadline_updated = False
+        if "deadline" in updates and updates["deadline"]:
+            dl = self.parse_datetime(updates["deadline"])
+            if dl:
+                new_deadline = dl
+                deadline_updated = True
+        else:
+            try:
+                new_deadline = datetime.fromisoformat(new_deadline)
+            except Exception:
+                pass
+                
+        new_priority = self.extract_priority(f"{new_title} {new_desc}")
+        
+        self.db.update_task(task_id, title=new_title, description=new_desc,
+                           subject=new_subj, deadline=new_deadline,
+                           priority=new_priority, target_class=new_target)
+                           
+        rems_text = "Tetap seperti sebelumnya"
+        if "reminder_schedule" in updates or deadline_updated:
+            if hasattr(self.db, 'delete_reminders_for_task'):
+                self.db.delete_reminders_for_task(task_id)
+                
+            rem_raw = updates.get("reminder_schedule", [])
+            if not rem_raw and deadline_updated:
+                rem_raw = ["1 day", "1 hour"]  # Fallback kalau ganti jam tapi gk minta reminder custom
+                
+            if rem_raw:
+                reminders_str = ",".join([str(x) for x in rem_raw]) if isinstance(rem_raw, list) else str(rem_raw)
+                
+                reminder_times = []
+                for rem in reminders_str.split(","):
+                    rem = rem.strip().lower()
+                    try:
+                        num = int(re.search(r'\d+', rem).group())
+                        if "day" in rem or "hari" in rem: reminder_times.append((timedelta(days=num), f"{num} hari"))
+                        elif "hour" in rem or "jam" in rem: reminder_times.append((timedelta(hours=num), f"{num} jam"))
+                        elif "minute" in rem or "menit" in rem: reminder_times.append((timedelta(minutes=num), f"{num} menit"))
+                    except Exception:
+                        pass
+                        
+                created_reminders = []
+                if isinstance(new_deadline, datetime):
+                    for td, label in reminder_times:
+                        rem_time = new_deadline - td
+                        if rem_time > datetime.now():
+                            self.db.add_reminder(task_id, chat_id, rem_time, f"⏰ Reminder: *{new_title}* ({new_subj}) untuk kelas *{new_target}* jatuh tempo dalam {label}!")
+                            created_reminders.append(label)
+                            
+                    if new_deadline > datetime.now():
+                        self.db.add_reminder(task_id, chat_id, new_deadline, f"🚨 TENGGAT WAKTU TIBA! Tugas *{new_title}* ({new_subj}) untuk kelas *{new_target}* harus dikumpulkan SEKARANG!")
+                        created_reminders.append("Saat deadline")
+                        
+                rems_text = ", ".join(created_reminders) if created_reminders else "Tidak ada"
+            else:
+                rems_text = "Tidak ada"
+            
+        deadline_format = new_deadline.strftime("%d/%m/%Y %H:%M") if isinstance(new_deadline, datetime) else new_deadline
+        priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(new_priority, "🟡")
+        
+        return f"""🔄 Task berhasil diperbarui!
+
+📋 Judul: {new_title}
+📚 Mata Kuliah: {new_subj}
+🎯 Target Kelas: {new_target}
+📅 Deadline: {deadline_format}
+⚡ Priority: {priority_emoji} {new_priority}
+🔔 Jadwal Pengingat: {rems_text}
+
+*ID Task: #{task_id}*"""
