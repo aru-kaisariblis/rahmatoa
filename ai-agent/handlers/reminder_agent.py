@@ -27,6 +27,8 @@ class ReminderAgent:
         # Setup Groq Client
         self.groq_api_key = os.getenv("GROQ_API_KEY")
         self.groq_client = Groq(api_key=self.groq_api_key) if self.groq_api_key else None
+        
+        self.chat_history = {} # Untuk menyimpan memori percakapan
     
     def parse_message(self, message: str) -> Tuple[str, str]:
         """Parse perintah dari message"""
@@ -139,8 +141,17 @@ class ReminderAgent:
             deadline_format = deadline.strftime("%d/%m/%Y %H:%M")
             priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(priority, "🟡")
             
+            # Ambil nomor mahasiswa yang terdaftar di kelas ini untuk di-tag
+            mention_tags = ""
+            if hasattr(self.db, 'get_mentions_for_task'):
+                mentions_list = self.db.get_mentions_for_task(task_id, chat_id)
+                if mentions_list:
+                    mention_tags = " ".join([f"@{m.split('@')[0]}" for m in mentions_list if m])
+            
             rems_text = ", ".join(created_reminders) if created_reminders else "Tidak ada (sudah lewat)"
             tag_info = f"🎯 Target Kelas: {target_class}"
+            if mention_tags:
+                tag_info += f"\n📢 Panggilan: {mention_tags}"
             
             return f"""✅ Task berhasil ditambahkan!
 
@@ -356,18 +367,22 @@ class ReminderAgent:
         if not self.groq_client:
             return "❌ GROQ API Key belum di-setup di environment. Minta admin untuk menambahkan GROQ_API_KEY."
             
+        chat_key = f"{chat_id}_{user_id}"
+        if chat_key not in self.chat_history:
+            self.chat_history[chat_key] = []
+            
         current_time = datetime.now().strftime("%d/%m/%Y %H:%M")
         
-        system_prompt = f"""Kamu adalah Asisten Akademik AI untuk sebuah angkatan kuliah.
+        system_prompt = f"""Kamu adalah "Bot Akademik", asisten AI super asik, gaul, tapi cerdas ala mahasiswa Indonesia.
 Waktu saat ini adalah: {current_time}
 
 KONTEKS KELAS:
 Terdapat berbagai macam kelas Mata Kuliah Wajib (MKW 1, MKW 2, MKW 3) dan berbagai macam kelas Mata Kuliah Umum (MKU 1, MKU 2).
 Satu matkul bisa ditujukan untuk 1 kelas saja, atau digabung (misal: MKW 1 & MKW 2).
-(Note: Kamu bisa mengenali nama matkul secara fleksibel dari singkatan yang diketik user).
 
 TUGAS KAMU:
-Ekstrak informasi tugas dari pesan user. Jika user ingin mencatat tugas, pastikan 6 hal ini ada:
+1. Ngobrol layaknya teman seangkatan (pakai kata santai seperti bro, cuy, oke siap, dkk tapi tetap sopan). Jangan kaku kayak robot resmi. Gunakan emoji yang pas!
+2. Jika user memberikan tugas, ekstrak 6 hal ini:
 1. title (Judul/Nama Tugas)
 2. subject (Nama Matkul)
 3. deadline (Waktu pengumpulan, format WAJIB: DD/MM/YYYY HH:MM)
@@ -375,14 +390,13 @@ Ekstrak informasi tugas dari pesan user. Jika user ingin mencatat tugas, pastika
 5. target_class (Tugas ini untuk anak kelas mana? Misal: ["MKW 1"], ["MKW 1", "MKW 2"], atau ["ALL"])
 6. reminder_schedule (Kapan saja bot harus mengingatkan? Misal: ["1 hari sebelum", "2 jam sebelum"])
 
-Jika informasi belum lengkap (misal tanggal tidak ada), tanyakan kembali ke user dengan ramah.
-Jika informasi sudah lengkap, set action menjadi "add_task".
-Jika user hanya bertanya/mengobrol biasa, set action menjadi "chat".
+3. WAJIB tanyakan balik dengan santai jika info belum lengkap (misal: "Deadlinenya kapan nih bro biar bisa dicatet?").
+4. Jika info sudah LENGKAP, set action menjadi "add_task". Jika masih kurang/hanya ngobrol, set "chat".
 
 OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
 {{
     "action": "chat" | "add_task",
-    "response": "Pesan balasanmu untuk user (ramah & santai ala mahasiswa)",
+    "response": "Balasan gaulmu untuk user",
     "title": "Judul tugas (jika add_task)",
     "subject": "Nama matkul (jika add_task)",
     "deadline": "DD/MM/YYYY HH:MM (jika add_task)",
@@ -391,18 +405,29 @@ OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
     "reminder_schedule": ["1 day", "2 hours"]
 }}"""
 
+        messages = [{"role": "system", "content": system_prompt}]
+        messages.extend(self.chat_history[chat_key])
+        messages.append({"role": "user", "content": user_text})
+
         try:
             chat_completion = self.groq_client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_text}
-                ],
-                model="llama-3.3-70b-versatile", # Alternatif lain: "llama-3.1-8b-instant" atau "mixtral-8x7b-32768"
+                messages=messages,
+                model="llama-3.3-70b-versatile",
                 response_format={"type": "json_object"},
-                temperature=0.5,
+                temperature=0.65, # Sedikit dinaikkan agar bahasanya lebih bervariasi dan luwes
             )
             
-            response_json = json.loads(chat_completion.choices[0].message.content)
+            response_content = chat_completion.choices[0].message.content
+            response_json = json.loads(response_content)
+            
+            # Simpan percakapan ke memori
+            self.chat_history[chat_key].append({"role": "user", "content": user_text})
+            self.chat_history[chat_key].append({"role": "assistant", "content": response_content})
+            
+            # Batasi memori maksimal 6 pesan terakhir agar hemat token API
+            if len(self.chat_history[chat_key]) > 6:
+                self.chat_history[chat_key] = self.chat_history[chat_key][-6:]
+                
             action = response_json.get("action", "chat")
             reply_msg = response_json.get("response", "Oke!")
             

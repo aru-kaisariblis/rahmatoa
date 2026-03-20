@@ -3,6 +3,7 @@ AI Reminder Agent - Main FastAPI Application
 Integrasi dengan WAHA (WhatsApp HTTP API)
 """
 
+import re
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -79,6 +80,16 @@ async def send_message_to_waha(chat_id: str, text: str, mentions: Optional[list]
     """Kirim pesan ke WhatsApp melalui WAHA API"""
     # Mark as seen dulu
     await mark_chat_as_seen(chat_id)
+    
+    if mentions is None:
+        mentions = []
+        
+    # Auto-extract nomor HP dari teks (misal: @628123456)
+    extracted_numbers = re.findall(r'@(\d+)', text)
+    for num in extracted_numbers:
+        mentions.append(f"{num}@c.us")
+        
+    mentions = list(set(mentions)) # Hapus duplikat
     
     url = f"{WAHA_API_URL}/api/sendText"
     
