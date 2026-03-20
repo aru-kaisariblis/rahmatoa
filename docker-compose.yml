@@ -14,6 +14,7 @@ services:
       - WAHA_API_KEY=${WAHA_API_KEY:-7dde6a37742043d4b961c10ebd1d06d8}
       - REMINDER_CHECK_INTERVAL=60
       - AI_AGENT_PORT=8001
+      - GROQ_API_KEY=${GROQ_API_KEY}
     volumes:
       - ./sessions:/app/sessions
     depends_on:

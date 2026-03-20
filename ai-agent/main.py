@@ -75,7 +75,7 @@ async def mark_chat_as_seen(chat_id: str):
     except Exception as e:
         print(f"⚠️ Warning: {str(e)}")
 
-async def send_message_to_waha(chat_id: str, text: str):
+async def send_message_to_waha(chat_id: str, text: str, mentions: Optional[list] = None):
     """Kirim pesan ke WhatsApp melalui WAHA API"""
     # Mark as seen dulu
     await mark_chat_as_seen(chat_id)
@@ -92,6 +92,8 @@ async def send_message_to_waha(chat_id: str, text: str):
         "chatId": chat_id,
         "text": text
     }
+    if mentions:
+        payload["mentions"] = mentions
     
     try:
         async with aiohttp.ClientSession() as session:
@@ -111,9 +113,13 @@ async def check_and_send_reminders():
             reminders = db.get_pending_reminders()
             
             for reminder in reminders:
+                # Ambil mentions mahasiswa sesuai kelas tugas (jika ada fungsi get_mentions_for_task)
+                mentions = getattr(db, 'get_mentions_for_task', lambda t, c: [])(reminder['task_id'], reminder['chat_id'])
+                
                 await send_message_to_waha(
                     chat_id=reminder['chat_id'],
-                    text=reminder['message']
+                    text=reminder['message'],
+                    mentions=mentions
                 )
                 db.mark_reminder_sent(reminder['id'])
                 print(f"📤 Reminder #{reminder['id']} sent to {reminder['chat_id']}")
@@ -146,16 +152,37 @@ async def health():
     return {"status": "OK"}
 
 @app.post("/webhook")
-async def webhook_handler(payload: MessagePayload, background_tasks: BackgroundTasks):
+async def webhook_handler(payload: dict, background_tasks: BackgroundTasks):
     """
     Webhook endpoint untuk menerima pesan dari WAHA
     
     Endpoint ini dipanggil setiap kali ada pesan masuk di WhatsApp
     """
     try:
-        message = payload.text.strip()
-        chat_id = payload.chatId
-        user_id = payload.fromId
+        # Deteksi format payload (WAHA Asli vs test.py)
+        if "payload" in payload:
+            # Payload asli dari WAHA
+            if payload.get("event") != "message":
+                return JSONResponse({"status": "ignored", "message": "Bukan event message"})
+                
+            waha_payload = payload.get("payload", {})
+            
+            # Abaikan pesan dari bot itu sendiri agar tidak looping
+            if waha_payload.get("fromMe", False):
+                return JSONResponse({"status": "ignored"})
+                
+            message = waha_payload.get("body", "")
+            message = message.strip() if message else ""
+            chat_id = waha_payload.get("from", "")
+            user_id = waha_payload.get("author", chat_id) # Jika di grup, sender ada di 'author'
+        else:
+            # Payload custom dari test.py lokal
+            message = payload.get("text", "").strip()
+            chat_id = payload.get("chatId", "")
+            user_id = payload.get("fromId", "")
+            
+        if not message:
+            return JSONResponse({"status": "ignored", "message": "Pesan kosong / bukan teks"})
         
         print(f"📨 Pesan diterima: {message} dari {user_id} di {chat_id}")
         
