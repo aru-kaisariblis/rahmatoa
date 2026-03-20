@@ -180,9 +180,13 @@ class ReminderAgent:
         """Handle: /list atau /list [subject] atau /list [status]"""
 
     def handle_daftar(self, args: str, chat_id: str, user_id: str) -> str:
-        """Handle: /daftar [Kelas MKW] [Kelas MKU]"""
+        """Handle: /daftar [Kelas] atau /daftar @nomor [Kelas]"""
         if not args.strip():
             return "❌ Format tidak valid!\n\nPenggunaan: `/daftar Kelas1, Kelas2`\nContoh: `/daftar MKW B, MKU A`"
+            
+        # Cari mention (jika mendaftarkan orang lain)
+        mentioned_numbers = re.findall(r'@(\d+)', args)
+        targets = [f"{num}@c.us" for num in mentioned_numbers] if mentioned_numbers else [user_id]
             
         # Gunakan regex untuk mencari pola kelas (case insensitive & kebal spasi/koma)
         matches = re.findall(r'(MKW|MKU)\s*([A-C])', args.upper())
@@ -202,8 +206,14 @@ class ReminderAgent:
             
         try:
             if hasattr(self.db, 'register_student'):
-                self.db.register_student(user_id, chat_id, classes)
-                return f"✅ Berhasil mendaftar ke kelas: *{', '.join(classes)}*!\nKamu akan otomatis di-tag saat ada tugas untuk kelas tersebut."
+                for target in targets:
+                    self.db.register_student(target, chat_id, classes)
+                
+                if mentioned_numbers:
+                    mentions_str = " ".join([f"@{num}" for num in mentioned_numbers])
+                    return f"✅ Berhasil mendaftarkan {mentions_str} ke kelas: *{', '.join(classes)}*!"
+                else:
+                    return f"✅ Berhasil mendaftar ke kelas: *{', '.join(classes)}*!\nKamu akan otomatis di-tag saat ada tugas untuk kelas tersebut."
             else:
                 return "❌ Fitur pendataan kelas belum diaktifkan di database."
         except Exception as e:

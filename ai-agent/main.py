@@ -175,7 +175,8 @@ async def webhook_handler(payload: dict, background_tasks: BackgroundTasks):
             message = waha_payload.get("body", "")
             message = message.strip() if message else ""
             chat_id = waha_payload.get("from", "")
-            user_id = waha_payload.get("author", chat_id) # Jika di grup, sender ada di 'author'
+            # Ambil sender dari participant (WAHA) atau author, fallback ke chat_id
+            user_id = waha_payload.get("participant") or waha_payload.get("author") or chat_id
         else:
             # Payload custom dari test.py lokal
             message = payload.get("text", "").strip()
