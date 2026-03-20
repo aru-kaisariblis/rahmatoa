@@ -180,6 +180,7 @@ async def webhook_handler(payload: dict, background_tasks: BackgroundTasks):
             
             # Abaikan pesan dari bot itu sendiri agar tidak looping
             if waha_payload.get("fromMe", False):
+                print(f"⚠️ Pesan diabaikan karena dikirim oleh nomor bot itu sendiri.")
                 return JSONResponse({"status": "ignored"})
                 
             message = waha_payload.get("body", "")
@@ -192,6 +193,8 @@ async def webhook_handler(payload: dict, background_tasks: BackgroundTasks):
             chat_id = payload.get("chatId", "")
             user_id = payload.get("fromId", "")
             
+        print(f"👀 Teks yang dibaca bot: '{message}'")
+
         if not message:
             return JSONResponse({"status": "ignored", "message": "Pesan kosong / bukan teks"})
         
