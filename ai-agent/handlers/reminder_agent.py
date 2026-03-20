@@ -157,7 +157,7 @@ class ReminderAgent:
                 if mentions_list:
                     mention_tags = " ".join([f"@{m.split('@')[0]}" for m in mentions_list if m])
             
-            rems_text = ", ".join(created_reminders) if created_reminders else "Tidak ada (sudah lewat)"
+            rems_text = ", ".join(created_reminders) if created_reminders else "Tidak ada"
             tag_info = f"🎯 Target Kelas: {target_class}"
             if mention_tags:
                 tag_info += f"\n📢 Panggilan: {mention_tags}"
@@ -169,7 +169,7 @@ class ReminderAgent:
 {tag_info}
 📅 Deadline: {deadline_format}
 ⚡ Priority: {priority_emoji} {priority}
-🔔 Jadwal Pengingat: {rems_text} sebelum deadline
+🔔 Jadwal Pengingat: {rems_text}
 
 *ID Task: #{task_id}*"""
         
@@ -182,9 +182,13 @@ class ReminderAgent:
     def handle_daftar(self, args: str, chat_id: str, user_id: str) -> str:
         """Handle: /daftar [Kelas MKW] [Kelas MKU]"""
         if not args.strip():
-            return "❌ Format tidak valid!\n\nPenggunaan: `/daftar [Kelas MKW] [Kelas MKU]`\nContoh: `/daftar MKW1 MKU2`"
+            return "❌ Format tidak valid!\n\nPenggunaan: `/daftar Kelas1, Kelas2`\nContoh: `/daftar MKW B, MKU A`"
             
-        classes = [c.strip().upper() for c in args.split()]
+        if ',' in args:
+            classes = [c.strip().upper() for c in args.split(',')]
+        else:
+            classes = [c.strip().upper() for c in args.split()]
+            
         try:
             if hasattr(self.db, 'register_student'):
                 self.db.register_student(user_id, chat_id, classes)
