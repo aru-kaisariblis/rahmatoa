@@ -151,10 +151,8 @@ class Database:
         
         cursor.execute("""
             SELECT * FROM tasks 
-            WHERE chat_id = ? AND status != 'completed' AND deadline < CURRENT_TIMESTAMP
-            ORDER BY deadline ASC
-        """, (chat_id,))
-        
+            WHERE chat_id = ? AND status != 'completed' AND deadline < 
+        """, (chat_id, datetime.n
         tasks = [dict(row) for row in cursor.fetchall()]
         conn.close()
         
@@ -194,12 +192,10 @@ class Database:
         
         cursor.execute("""
             SELECT * FROM reminders 
-            WHERE is_sent = 0 AND reminder_time <= CURRENT_TIMESTAMP
-            ORDER BY reminder_time ASC
-        """)
+            WHERE is_sent = 0 AND reminder_time <= ?
+            ORDER BY reminder_timee
         
-        reminders = [dict(row) for row in cursor.fetchall()]
-        conn.close()
+        reminders = [dict(row) for row.close()
         
         return reminders
     

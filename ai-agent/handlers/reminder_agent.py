@@ -447,8 +447,18 @@ OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
                 subject = response_json.get("subject", "General")
                 deadline_str = response_json.get("deadline", "")
                 desc = response_json.get("description", "")
-                target_class = ",".join(response_json.get("target_class", ["ALL"]))
-                reminders = ",".join(response_json.get("reminder_schedule", ["1 day", "1 hour"]))
+                
+                tc_raw = response_json.get("target_class", ["ALL"])
+                if isinstance(tc_raw, list):
+                    target_class = ",".join([str(x) for x in tc_raw])
+                else:
+                    target_class = str(tc_raw)
+                    
+                rem_raw = response_json.get("reminder_schedule", ["1 day", "1 hour"])
+                if isinstance(rem_raw, list):
+                    reminders = ",".join([str(x) for x in rem_raw])
+                else:
+                    reminders = str(rem_raw)
                 
                 # Buat format command seperti yang diharapkan oleh handle_add_task
                 fake_args = f"{title} | {subject} | {deadline_str} | {desc} | {target_class} | {reminders}"
