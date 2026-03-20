@@ -430,11 +430,11 @@ OUTPUT WAJIB DALAM FORMAT JSON SEPERTI INI SAJA (TANPA MARKDOWN):
     def process_command(self, message: str, chat_id: str, user_id: str) -> str:
         """Process incoming message dan return response"""
         
-        # Cek apakah pesan diawali dengan "." untuk masuk ke mode LLM
-        if message.startswith("."):
+        # Cek apakah pesan diawali dengan "!" untuk masuk ke mode LLM
+        if message.startswith("!"):
             user_text = message[1:].strip()
             if not user_text:
-                return "Ya? Ada yang bisa dibantu? Ketik `.tugas matkul X besok` untuk mencatat tugas."
+                return "Ya? Ada yang bisa dibantu? Ketik `!tugas matkul X besok` untuk mencatat tugas."
             return self.handle_llm_chat(user_text, chat_id, user_id)
             
         # Cek apakah pesan diawali command garis miring (/)
